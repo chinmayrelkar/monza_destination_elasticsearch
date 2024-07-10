@@ -1,6 +1,6 @@
 module github.com/chinmayrelkar/monza_destination_elasticsearch
 
-go 1.22.2
+go 1.21.3
 
 require (
 	github.com/chinmayrelkar/monza v0.0.2
