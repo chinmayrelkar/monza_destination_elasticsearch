@@ -16,12 +16,7 @@ import (
 
 func DefaultElasticsearchConfig() Config {
 	return Config{
-		Config: elasticsearch.Config{
-			Addresses:     []string{"http://localhost:9200"},
-			RetryOnStatus: []int{502, 503, 504, 429},
-			RetryBackoff:  func(i int) time.Duration { return time.Duration(i) * 100 * time.Millisecond },
-			MaxRetries:    5,
-		},
+		Address:       "http://localhost:9200",
 		NumWorkers:    4,
 		FlushInterval: time.Second,
 		DefaultIndex:  "monza",
@@ -29,10 +24,10 @@ func DefaultElasticsearchConfig() Config {
 }
 
 type Config struct {
-	elasticsearch.Config
-	NumWorkers    int
-	FlushInterval time.Duration
-	DefaultIndex  string
+	Address       string        `mapstructure:"address" validate:"required"`
+	NumWorkers    int           `mapstructure:"num_workers"`
+	FlushInterval time.Duration `mapstructure:"flush_interval"`
+	DefaultIndex  string        `mapstructure:"default_index"`
 }
 
 func Get(ctx context.Context, config Config) monza.Destination {
@@ -51,14 +46,19 @@ type client struct {
 
 // Setup implements monza.Destination.
 func (c *client) Setup(ctx context.Context) error {
-	client, err := elasticsearch.NewClient(c.config.Config)
+	client, err := elasticsearch.NewClient(elasticsearch.Config{
+		Addresses:     []string{c.config.Address},
+		RetryOnStatus: []int{502, 503, 504, 429},
+		RetryBackoff:  func(i int) time.Duration { return time.Duration(i) * 100 * time.Millisecond },
+		MaxRetries:    5,
+	})
 	if err != nil {
 		return fmt.Errorf("failed to create Elastic search client: %e", err)
 	}
 
 	_, err = client.Ping()
 	if err != nil {
-		return fmt.Errorf("failed to connect to Elastic search client at %v: %e", c.config.Addresses, err)
+		return fmt.Errorf("failed to connect to Elastic search client at %v: %e", c.config.Address, err)
 	}
 
 	c.client = client
